@@ -1,8 +1,7 @@
 import { useState } from "react";
 import Nav from "./components/Nav";
 import Home from "./components/Home";
-import { supabase } from "./services/supabase";
-
+ 
 // ---- Données initiales ----
 const initialProfiles = [
   { id: "u1", email: "moussa.diop@gmail.com", nom: "Diop", prenom: "Moussa", telephone: "77 123 45 67", role: "repetiteur", region: "Dakar", photo_url: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&q=80&w=150" },

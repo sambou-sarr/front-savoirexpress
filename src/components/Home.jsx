@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../services/supabase";
-
+ 
 export default function Home({ db, currentUser, onBookSession, onStartCourse, onOpenLogin, onOpenRegister }) {
 
   // ── États de recherche et filtres ──
