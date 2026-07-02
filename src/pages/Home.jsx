@@ -80,13 +80,29 @@ export default function Home({ db, currentUser, onBookSession, onStartCourse, on
   };
 
   // ── Handler : soumettre demande répétiteur ──
-  const handleRepSubmit = (e) => {
+  const handleRepSubmit = async (e) => {
     e.preventDefault();
-    alert("Demande envoyée avec succès ! Nous vous contacterons bientôt.");
-    setShowRepetiteurForm(false);
-    setRepForm({ prenom: '', nom: '', date_naissance: '', email: '', telephone: '', region: '', motivations: '', cv_url: '' });
+  
+    try {
+      const response = await fetch('http://localhost:8000/api/demandes-repetiteur', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(repForm),
+      });
+  
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'envoi');
+      }
+  
+      alert("Demande envoyée avec succès ! Nous vous contacterons bientôt.");
+      setShowRepetiteurForm(false);
+      setRepForm({ prenom: '', nom: '', date_naissance: '', email: '', telephone: '', region: '', motivations: '', cv_url: '' });
+  
+    } catch (error) {
+      console.error(error);
+      alert("Une erreur est survenue. Réessaie.");
+    }
   };
-
   return (
     <div>
 
