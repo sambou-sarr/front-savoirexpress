@@ -1,33 +1,32 @@
-import { useState } from "react";
- 
-export default function Home({ db, currentUser, onBookSession, onStartCourse, onOpenLogin, onOpenRegister }) {
+import { useState, useEffect } from "react";
 
-  // ── États de recherche et filtres ──
-  const [searchSubject, setSearchSubject] = useState('');
-  const [searchRegion, setSearchRegion] = useState('');
+export default function Home({ currentUser, onBookSession, onStartCourse, onOpenLogin, onOpenRegister }) {
+
+  const [searchSubject, setSearchSubject]       = useState('');
+  const [searchRegion, setSearchRegion]         = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedTutor, setSelectedTutor] = useState(null);
+  const [selectedTutor, setSelectedTutor]       = useState(null);
+  const [repetiteurs, setRepetiteurs]           = useState([]);
+  const [loadingReps, setLoadingReps]           = useState(true);
 
-  // ── États du formulaire de réservation ──
-  const [bookingSubject, setBookingSubject] = useState('');
-  const [bookingDate, setBookingDate] = useState('');
+  const [bookingSubject, setBookingSubject]   = useState('');
+  const [bookingDate, setBookingDate]         = useState('');
   const [bookingDuration, setBookingDuration] = useState(1);
-  const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingNotes, setBookingNotes]       = useState('');
 
-  // ── États du formulaire répétiteur ──
   const [showRepetiteurForm, setShowRepetiteurForm] = useState(false);
   const [repForm, setRepForm] = useState({
-    prenom: '',
-    nom: '',
-    date_naissance: '',
-    email: '',
-    telephone: '',
-    region: '',
-    motivations: '',
-    cv_url: ''
+    prenom: '', nom: '', date_naissance: '', email: '',
+    telephone: '', region: '', motivations: '', cv_url: ''
   });
 
-  // ── Données des cours ──
+  useEffect(() => {
+    fetch('http://localhost:8000/api/users/repetiteurs')
+      .then(res => res.json())
+      .then(data => { setRepetiteurs(data); setLoadingReps(false); })
+      .catch(() => setLoadingReps(false));
+  }, []);
+
   const courses = [
     { id: 1, title: "Mathématiques Terminale S", category: "BAC", level: "Terminale S", instructor: "M. Diop", rating: 4.9, students: 1240, image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=400", price: "Gratuit" },
     { id: 2, title: "Préparation au BFEM : Sciences Physiques", category: "BFEM", level: "Troisième", instructor: "Mme Ndiaye", rating: 4.8, students: 850, image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400", price: "Gratuit" },
@@ -37,43 +36,57 @@ export default function Home({ db, currentUser, onBookSession, onStartCourse, on
     { id: 6, title: "Création de sites Web (HTML / CSS / React)", category: "tech", level: "Intermédiaire", instructor: "Mme Sy", rating: 5.0, students: 1890, image: "https://images.unsplash.com/photo-1581291518655-9523c932dedf?auto=format&fit=crop&q=80&w=400", price: "Gratuit" },
   ];
 
-  // Cours filtrés selon la catégorie sélectionnée
   const filteredCourses = selectedCategory === 'all'
     ? courses
     : courses.filter(c => c.category === selectedCategory);
 
-  // Trouve le profil d'un répétiteur
-  const getTutorProfile = (tutor) => db.profiles.find(p => p.id === tutor.profile_id) || {};
-
-  // Répétiteurs filtrés selon matière et région
-  const filteredTutors = db.repetiteurs.filter(tutor => {
-    const profile = getTutorProfile(tutor);
-    const matchesSubject = searchSubject === '' || tutor.matieres.some(m => m.toLowerCase().includes(searchSubject.toLowerCase()));
-    const matchesRegion = searchRegion === '' || (profile.region && profile.region.toLowerCase() === searchRegion.toLowerCase());
-    return matchesSubject && matchesRegion && tutor.disponible;
+  const filteredTutors = repetiteurs.filter(tutor => {
+    const matchesSubject = searchSubject === '' ||
+      (tutor.matieres && tutor.matieres.toLowerCase().includes(searchSubject.toLowerCase()));
+    const matchesRegion = searchRegion === '' ||
+      (tutor.region && tutor.region.toLowerCase() === searchRegion.toLowerCase());
+    return matchesSubject && matchesRegion;
   });
-
   // ── Handler : soumettre une réservation ──
-  const handleBookingSubmit = (e) => {
+  const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) { onOpenLogin(); return; }
-    const amount = selectedTutor.tarif_horaire * bookingDuration;
-    onBookSession({
-      repetiteur_id: selectedTutor.id,
-      eleve_id: currentUser.id,
-      matiere: bookingSubject,
-      date_session: bookingDate,
-      duree_heures: parseFloat(bookingDuration),
-      montant: amount,
-      notes: bookingNotes,
-    });
-    setSelectedTutor(null);
-    setBookingSubject('');
-    setBookingDate('');
-    setBookingDuration(1);
-    setBookingNotes('');
+  
+    const montant = (selectedTutor.tarif_horaire || 5000) * bookingDuration;
+  
+    try {
+      const response = await fetch('http://localhost:8000/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eleve_id:      currentUser.id,
+          repetiteur_id: selectedTutor.id,
+          matiere:       bookingSubject,
+          date_session:  bookingDate,
+          duree_heures:  bookingDuration,
+          montant:       montant,
+          notes:         bookingNotes,
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        alert(data.message || 'Erreur lors de la réservation');
+        return;
+      }
+  
+      alert('Réservation envoyée ! Le répétiteur vous contactera bientôt.');
+      setSelectedTutor(null);
+      setBookingSubject('');
+      setBookingDate('');
+      setBookingDuration(1);
+      setBookingNotes('');
+  
+    } catch (err) {
+      alert('Erreur. Vérifie que Laravel tourne.');
+    }
   };
-
   // ── Handler : champ formulaire répétiteur ──
   const handleRepChange = (e) => {
     setRepForm({ ...repForm, [e.target.name]: e.target.value });
@@ -242,92 +255,64 @@ export default function Home({ db, currentUser, onBookSession, onStartCourse, on
       </section>
 
       {/* ══════════════════════════ RÉPÉTITEURS ══════════════════════════ */}
-      <section id="repetiteurs-section" className="py-20 bg-white relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Trouver un répétiteur particulier</h2>
-            <p className="text-slate-600">Planifiez un accompagnement personnalisé pour CM2, BFEM ou BAC.</p>
-          </div>
-
-          {!currentUser ? (
-            <div className="relative bg-slate-50 rounded-3xl p-8 md:p-12 border border-slate-200 text-center shadow-inner overflow-hidden">
-              <div className="absolute inset-0 bg-slate-100/40 backdrop-blur-md"></div>
-              <div className="relative z-10 max-w-md mx-auto py-10 space-y-6">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto shadow border border-emerald-100">
-                  <i className="fa-solid fa-lock"></i>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-900">Connexion Obligatoire</h3>
-                  <p className="text-slate-600 text-sm">Pour accéder à notre catalogue d'enseignants certifiés, filtrer par région/matière et planifier des cours, vous devez d'abord posséder un compte.</p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                  <button onClick={onOpenLogin} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all shadow-md text-sm">
-                    <i className="fa-solid fa-right-to-bracket mr-2"></i>Se connecter
-                  </button>
-                  <button onClick={onOpenRegister} className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl transition-all text-sm">
-                    Créer un compte
-                  </button>
-                </div>
-              </div>
-            </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+  {loadingReps ? (
+    <div className="col-span-3 text-center py-12 text-slate-400">
+      <i className="fa-solid fa-spinner fa-spin text-2xl mb-3 block"></i>
+      <p className="text-sm">Chargement des répétiteurs...</p>
+    </div>
+  ) : filteredTutors.length === 0 ? (
+    <div className="col-span-3 text-center py-12 text-slate-400">
+      <i className="fa-solid fa-users text-3xl mb-3 block"></i>
+      <p className="text-sm">Aucun répétiteur disponible pour ces critères.</p>
+    </div>
+  ) : filteredTutors.map(tutor => (
+    <div key={tutor.id} className="bg-slate-50 rounded-3xl border border-slate-150 p-6 flex flex-col justify-between hover:shadow-lg transition-all">
+      <div>
+        <div className="flex items-center gap-4 mb-4">
+          {tutor.photo_url ? (
+            <img src={tutor.photo_url} className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow" alt="Tuteur" />
           ) : (
-            <div className="space-y-8">
-              <div className="bg-slate-100 p-4 rounded-3xl flex flex-col md:flex-row gap-3 shadow-inner max-w-3xl mx-auto">
-                <div className="flex-1 relative">
-                  <i className="fa-solid fa-book-open absolute left-4 top-3.5 text-slate-400"></i>
-                  <input type="text" placeholder="Quelle matière ? (Maths, SVT...)" value={searchSubject} onChange={(e) => setSearchSubject(e.target.value)} className="w-full bg-white text-sm text-slate-700 pl-11 pr-4 py-3 rounded-xl outline-none border border-transparent focus:border-emerald-300" />
-                </div>
-                <div className="flex-1 relative">
-                  <i className="fa-solid fa-location-dot absolute left-4 top-3.5 text-slate-400"></i>
-                  <select value={searchRegion} onChange={(e) => setSearchRegion(e.target.value)} className="w-full bg-white text-sm text-slate-700 pl-11 pr-4 py-3 rounded-xl outline-none border border-transparent focus:border-emerald-300 appearance-none">
-                    <option value="">Toutes les régions (Sénégal)</option>
-                    <option value="Dakar">Dakar</option>
-                    <option value="Thiès">Thiès</option>
-                    <option value="Saint-Louis">Saint-Louis</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredTutors.map(tutor => {
-                  const profile = getTutorProfile(tutor);
-                  return (
-                    <div key={tutor.id} className="bg-slate-50 rounded-3xl border border-slate-150 p-6 flex flex-col justify-between hover:shadow-lg transition-all">
-                      <div>
-                        <div className="flex items-center gap-4 mb-4">
-                          <img src={profile.photo_url} className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow" alt="Tuteur" />
-                          <div>
-                            <h3 className="font-extrabold text-slate-900">{profile.prenom} {profile.nom}</h3>
-                            <p className="text-xs text-slate-400"><i className="fa-solid fa-location-dot text-red-500 mr-1"></i>{profile.region}</p>
-                            <div className="flex items-center gap-1 mt-1 text-xs text-amber-500 font-bold">
-                              <i className="fa-solid fa-star"></i> {tutor.note_moyenne} ({tutor.nb_sessions} sessions)
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-slate-600 text-xs line-clamp-3 mb-4">{tutor.description}</p>
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-1">
-                            {tutor.matieres.map((mat, idx) => <span key={idx} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md">{mat}</span>)}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {tutor.niveaux.map((niv, idx) => <span key={idx} className="bg-slate-200 text-slate-700 text-[9px] font-semibold px-2 py-0.5 rounded">{niv}</span>)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="border-t border-slate-200/50 mt-6 pt-4 flex items-center justify-between">
-                        <span className="text-slate-800 font-black text-sm">{tutor.tarif_horaire.toLocaleString()} FCFA/h</span>
-                        <button onClick={() => setSelectedTutor(tutor)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all">
-                          Réserver tuteur
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-black border-2 border-white shadow">
+              {tutor.prenom?.[0]}{tutor.nom?.[0]}
             </div>
           )}
+          <div>
+            <h3 className="font-extrabold text-slate-900">{tutor.prenom} {tutor.nom}</h3>
+            <p className="text-xs text-slate-400">
+              <i className="fa-solid fa-location-dot text-red-500 mr-1"></i>
+              {tutor.region || 'Sénégal'}
+            </p>
+            <div className="flex items-center gap-1 mt-1 text-xs text-amber-500 font-bold">
+              <i className="fa-solid fa-star"></i> 5.0
+            </div>
+          </div>
         </div>
-      </section>
+        <p className="text-slate-600 text-xs line-clamp-3 mb-4">
+          {tutor.bio || 'Répétiteur expérimenté disponible pour vous accompagner.'}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {tutor.matieres && tutor.matieres.split(',').map((mat, idx) => (
+            <span key={idx} className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
+              {mat.trim()}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="border-t border-slate-200/50 mt-6 pt-4 flex items-center justify-between">
+        <span className="text-slate-800 font-black text-sm">
+          {tutor.tarif_horaire ? `${tutor.tarif_horaire.toLocaleString()} FCFA/h` : 'Tarif à définir'}
+        </span>
+        <button
+          onClick={() => { if (!currentUser) onOpenLogin(); else setSelectedTutor(tutor); }}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+        >
+          Réserver
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
 
       {/* ═══════════════════════ DEVENIR RÉPÉTITEUR ═══════════════════════ */}
       <section id="devenir-repetiteur" className="py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
@@ -406,57 +391,93 @@ export default function Home({ db, currentUser, onBookSession, onStartCourse, on
 
       {/* ══════════════ MODAL : RÉSERVATION RÉPÉTITEUR ══════════════ */}
       {selectedTutor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div onClick={() => setSelectedTutor(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 relative shadow-2xl z-10 border border-slate-100">
-            <button onClick={() => setSelectedTutor(null)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50">
-              <i className="fa-solid fa-xmark text-lg"></i>
-            </button>
-            <div className="flex items-start gap-4 pb-4 border-b border-slate-100 mb-4">
-              <img src={getTutorProfile(selectedTutor).photo_url} className="w-14 h-14 rounded-xl object-cover" alt="Avatar" />
-              <div>
-                <h3 className="text-lg font-black text-slate-900">{getTutorProfile(selectedTutor).prenom} {getTutorProfile(selectedTutor).nom}</h3>
-                <p className="text-xs text-slate-400">Répétiteur de {getTutorProfile(selectedTutor).region}</p>
-                <p className="text-xs text-emerald-600 font-bold mt-1">{selectedTutor.tarif_horaire.toLocaleString()} FCFA / heure</p>
-              </div>
-            </div>
-            <form onSubmit={handleBookingSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5">Sélectionner la matière *</label>
-                <select value={bookingSubject} onChange={(e) => setBookingSubject(e.target.value)} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm text-slate-700 bg-white">
-                  <option value="">Choisissez la matière</option>
-                  {selectedTutor.matieres.map((m, idx) => <option key={idx} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5">Date & Heure *</label>
-                  <input type="datetime-local" required value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm text-slate-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5">Durée (Heures) *</label>
-                  <select value={bookingDuration} onChange={(e) => setBookingDuration(parseInt(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm text-slate-700 bg-white">
-                    <option value={1}>1 Heure</option>
-                    <option value={2}>2 Heures</option>
-                    <option value={3}>3 Heures</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5">Notes (Optionnel)</label>
-                <textarea rows="2" placeholder="Ex: J'aimerais travailler les fonctions polynômes..." value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none text-sm text-slate-700"></textarea>
-              </div>
-              <div className="bg-emerald-50 p-4 rounded-xl text-center">
-                <span className="text-xs text-slate-500 font-semibold block mb-0.5">Montant estimé</span>
-                <span className="text-xl font-black text-emerald-800">{(selectedTutor.tarif_horaire * bookingDuration).toLocaleString()} FCFA</span>
-              </div>
-              <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all text-sm">
-                Confirmer et Réserver
-              </button>
-            </form>
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div onClick={() => setSelectedTutor(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+    <div className="bg-white rounded-3xl w-full max-w-md p-6 relative shadow-2xl z-10 border border-slate-100">
+      <button onClick={() => setSelectedTutor(null)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
+        <i className="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <div className="flex items-start gap-4 pb-4 border-b border-slate-100 mb-4">
+        {selectedTutor.photo_url ? (
+          <img src={selectedTutor.photo_url} className="w-14 h-14 rounded-xl object-cover" alt="" />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-black">
+            {selectedTutor.prenom?.[0]}{selectedTutor.nom?.[0]}
+          </div>
+        )}
+        <div>
+          <h3 className="text-lg font-black text-slate-900">{selectedTutor.prenom} {selectedTutor.nom}</h3>
+          <p className="text-xs text-slate-400">{selectedTutor.region}</p>
+          <p className="text-xs text-emerald-600 font-bold mt-1">
+            {selectedTutor.tarif_horaire ? `${selectedTutor.tarif_horaire.toLocaleString()} FCFA / heure` : 'Tarif à définir'}
+          </p>
+        </div>
+      </div>
+      <form onSubmit={handleBookingSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-1.5">Matière *</label>
+          <select
+            value={bookingSubject}
+            onChange={e => setBookingSubject(e.target.value)}
+            required
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm text-slate-700 bg-white"
+          >
+            <option value="">Choisir une matière</option>
+            {selectedTutor.matieres
+              ? selectedTutor.matieres.split(',').map((m, idx) => (
+                  <option key={idx} value={m.trim()}>{m.trim()}</option>
+                ))
+              : <option value="Général">Général</option>
+            }
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">Date & Heure *</label>
+            <input
+              type="datetime-local"
+              required
+              value={bookingDate}
+              onChange={e => setBookingDate(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">Durée *</label>
+            <select
+              value={bookingDuration}
+              onChange={e => setBookingDuration(parseInt(e.target.value))}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm bg-white"
+            >
+              <option value={1}>1 Heure</option>
+              <option value={2}>2 Heures</option>
+              <option value={3}>3 Heures</option>
+            </select>
           </div>
         </div>
-      )}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-1.5">Notes (optionnel)</label>
+          <textarea
+            rows="2"
+            placeholder="Ex: J'aimerais travailler les fonctions..."
+            value={bookingNotes}
+            onChange={e => setBookingNotes(e.target.value)}
+            className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none text-sm"
+          ></textarea>
+        </div>
+        <div className="bg-emerald-50 p-4 rounded-xl text-center">
+          <span className="text-xs text-slate-500 font-semibold block mb-0.5">Montant estimé</span>
+          <span className="text-xl font-black text-emerald-800">
+            {((selectedTutor.tarif_horaire || 5000) * bookingDuration).toLocaleString()} FCFA
+          </span>
+        </div>
+        <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all text-sm">
+          Confirmer et Réserver
+        </button>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* ══════════════ MODAL : DEVENIR RÉPÉTITEUR ══════════════ */}
       {showRepetiteurForm && (

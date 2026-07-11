@@ -1,59 +1,34 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Models\DemandeRepetiteur;
+use App\Http\Controllers\DemandeRepetiteurController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\SessionController;
 
-// Route de test
-Route::get('/bonjour', function () {
-    return response()->json([
-        'message' => 'Bonjour depuis SavoirExpress API !',
-    ]);
-});
+// ── Demandes répétiteurs ──
+Route::get('/demandes-repetiteur',                [DemandeRepetiteurController::class, 'index']);
+Route::post('/demandes-repetiteur',               [DemandeRepetiteurController::class, 'store']);
+Route::put('/demandes-repetiteur/{id}/confirmer', [DemandeRepetiteurController::class, 'confirmer']);
+Route::put('/demandes-repetiteur/{id}/refuser',   [DemandeRepetiteurController::class, 'refuser']);
+Route::delete('/demandes-repetiteur/{id}',        [DemandeRepetiteurController::class, 'destroy']);
 
-// Route POST — recevoir et enregistrer une demande répétiteur
-Route::post('/demandes-repetiteur', function (Request $request) {
+// ── Admin ──
+Route::post('/admin/login', [AdminController::class, 'login']);
 
-    // 1. Valider les données reçues
-    $request->validate([
-        'prenom'      => 'required|string',
-        'nom'         => 'required|string',
-        'email'       => 'required|email|unique:demande_repetiteurs',
-        'region'      => 'required|string',
-        'motivations' => 'required|string',
-    ]);
+// ── Utilisateurs ──
+Route::post('/users/login',      [UserController::class, 'login']);
+Route::get('/users',             [UserController::class, 'index']);
+Route::get('/users/repetiteurs', [UserController::class, 'repetiteurs']);
+Route::post('/users',            [UserController::class, 'store']);
+Route::put('/users/{id}',        [UserController::class, 'update']);
+Route::put('/users/{id}/toggle', [UserController::class, 'toggle']);
+Route::delete('/users/{id}',     [UserController::class, 'destroy']);
 
-    // 2. Enregistrer en base de données
-    $demande = DemandeRepetiteur::create($request->all());
-
-    // 3. Répondre à React
-    return response()->json([
-        'message' => 'Demande enregistrée avec succès !',
-        'data'    => $demande,
-    ], 201);
-});
-
-Route::get('/demandes-repetiteur', function () {
-    return response()->json(\App\Models\DemandeRepetiteur::all());
-});
-
-// Confirmer
-Route::put('/demandes-repetiteur/{id}/confirmer', function ($id) {
-    $demande = \App\Models\DemandeRepetiteur::findOrFail($id);
-    $demande->update(['statut' => 'confirme']);
-    return response()->json(['message' => 'Confirmé', 'data' => $demande]);
-});
-
-// Refuser
-Route::put('/demandes-repetiteur/{id}/refuser', function ($id) {
-    $demande = \App\Models\DemandeRepetiteur::findOrFail($id);
-    $demande->update(['statut' => 'refuse']);
-    return response()->json(['message' => 'Refusé', 'data' => $demande]);
-});
-
-// Supprimer
-Route::delete('/demandes-repetiteur/{id}', function ($id) {
-    $demande = \App\Models\DemandeRepetiteur::findOrFail($id);
-    $demande->delete();
-    return response()->json(['message' => 'Supprimé']);
-});
+// ── Sessions ──
+Route::get('/sessions',                      [SessionController::class, 'index']);
+Route::post('/sessions',                     [SessionController::class, 'store']);
+Route::get('/sessions/eleve/{id}',           [SessionController::class, 'byEleve']);
+Route::get('/sessions/repetiteur/{id}',      [SessionController::class, 'byRepetiteur']);
+Route::put('/sessions/{id}/statut',          [SessionController::class, 'updateStatut']);
+Route::delete('/sessions/{id}',              [SessionController::class, 'destroy']);

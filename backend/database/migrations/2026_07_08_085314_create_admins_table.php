@@ -6,22 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('admins', function (Blueprint $table) {
             $table->id();
             $table->string('nom');
-            $table->string('prenom');
             $table->string('email')->unique();
             $table->string('password');
-            $table->string('telephone')->nullable();
-            $table->string('region')->nullable();
-            $table->string('role')->default('eleve'); // eleve ou repetiteur
-            $table->boolean('actif')->default(true);  // activer/désactiver
-            $table->string('photo_url')->nullable();
             $table->timestamps();
         });
     }
 
     public function down(): void {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('admins');
     }
 };

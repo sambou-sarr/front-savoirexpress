@@ -2,24 +2,45 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function AdminLogin({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email === "admin@savoirexpress.sn" && password === "admin123") {
-      onLogin({ email, role: "admin", nom: "Administrateur" });
-      navigate("/admin/dashboard"); // ← redirige après connexion
-    } else {
-      setError("Email ou mot de passe incorrect.");
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:8000/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Email ou mot de passe incorrect.');
+        return;
+      }
+
+      onLogin(data.admin);
+      navigate('/admin/dashboard');
+
+    } catch (err) {
+      setError('Erreur de connexion. Vérifie que Laravel tourne.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-100 w-full max-w-md p-8">
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="bg-emerald-600 text-white p-2 rounded-xl">
@@ -45,7 +66,7 @@ export default function AdminLogin({ onLogin }) {
             <input
               type="email" required
               value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="admin@savoirexpress.sn"
+              placeholder="savoirexpress221@gmail.com"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm focus:border-emerald-500"
             />
           </div>
@@ -58,8 +79,15 @@ export default function AdminLogin({ onLogin }) {
               className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm focus:border-emerald-500"
             />
           </div>
-          <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all mt-2">
-            <i className="fa-solid fa-right-to-bracket mr-2"></i>Se connecter
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all mt-2 disabled:opacity-50"
+          >
+            {loading
+              ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Connexion...</>
+              : <><i className="fa-solid fa-right-to-bracket mr-2"></i>Se connecter</>
+            }
           </button>
         </form>
 

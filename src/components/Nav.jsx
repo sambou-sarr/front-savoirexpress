@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function Nav({ currentUser, onLogout, onOpenLogin, onOpenRegister, onChangeRole }) {
+export default function Nav({ currentUser, onLogout, onOpenLogin, onOpenRegister }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -32,27 +32,22 @@ export default function Nav({ currentUser, onLogout, onOpenLogin, onOpenRegister
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {currentUser ? (
-              <div className="flex items-center gap-4">
-                <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-semibold">
-                  <button
-                    onClick={() => onChangeRole('eleve')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${currentUser.role === 'eleve' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
-                  >
-                    Élève
-                  </button>
-                  <button
-                    onClick={() => onChangeRole('repetiteur')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${currentUser.role === 'repetiteur' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
-                  >
-                    Répétiteur
-                  </button>
-                </div>
-
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-3 bg-slate-50 pl-3 pr-4 py-1.5 rounded-full border border-slate-100">
-                  <img src={currentUser.photo_url} className="w-8 h-8 rounded-full object-cover" alt="Avatar" />
+                  {currentUser.photo_url ? (
+                    <img src={currentUser.photo_url} className="w-8 h-8 rounded-full object-cover" alt="Avatar" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                      {currentUser.prenom?.[0]}{currentUser.nom?.[0]}
+                    </div>
+                  )}
                   <div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{currentUser.role}</p>
-                    <p className="text-xs font-bold text-slate-800">{currentUser.prenom} {currentUser.nom}</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                      {currentUser.role}
+                    </p>
+                    <p className="text-xs font-bold text-slate-800">
+                      {currentUser.prenom} {currentUser.nom}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -102,10 +97,16 @@ export default function Nav({ currentUser, onLogout, onOpenLogin, onOpenRegister
           {currentUser ? (
             <div className="space-y-3 px-3">
               <div className="flex items-center gap-3">
-                <img src={currentUser.photo_url} className="w-10 h-10 rounded-full object-cover" alt="Avatar" />
+                {currentUser.photo_url ? (
+                  <img src={currentUser.photo_url} className="w-10 h-10 rounded-full object-cover" alt="Avatar" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    {currentUser.prenom?.[0]}{currentUser.nom?.[0]}
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-bold text-slate-800">{currentUser.prenom} {currentUser.nom}</p>
-                  <p className="text-xs text-slate-400 capitalize">Rôle : {currentUser.role}</p>
+                  <p className="text-xs text-slate-400 capitalize">{currentUser.role}</p>
                 </div>
               </div>
               <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="w-full px-4 py-2.5 text-center text-red-600 font-semibold bg-red-50 rounded-xl">
