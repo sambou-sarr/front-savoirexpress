@@ -16,30 +16,33 @@ class UserController extends Controller
 
     // POST /api/users — créer un utilisateur
     public function store(Request $request)
-    {
-        $request->validate([
-            'nom'       => 'required|string',
-            'prenom'    => 'required|string',
-            'email'     => 'required|email|unique:users',
-            'password'  => 'required|string|min:6',
-            'role'      => 'required|in:eleve,repetiteur',
-        ]);
+{
+    $request->validate([
+        'nom'       => 'required|string',
+        'prenom'    => 'required|string',
+        'email'     => 'required|email|unique:users',
+        'password'  => 'required|string|min:6',
+        'role'      => 'required|in:eleve,repetiteur,parent',
+    ]);
 
-        $user = User::create([
-            'nom'       => $request->nom,
-            'prenom'    => $request->prenom,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
-            'telephone' => $request->telephone,
-            'region'    => $request->region,
-            'role'      => $request->role,
-        ]);
+    $user = User::create([
+        'nom'           => $request->nom,
+        'prenom'        => $request->prenom,
+        'email'         => $request->email,
+        'password'      => Hash::make($request->password),
+        'telephone'     => $request->telephone,
+        'region'        => $request->region,
+        'role'          => $request->role,
+        'matieres'      => $request->matieres,
+        'tarif_horaire' => $request->tarif_horaire,
+        'bio'           => $request->bio,
+    ]);
 
-        return response()->json([
-            'message' => 'Utilisateur créé avec succès',
-            'data'    => $user,
-        ], 201);
-    }
+    return response()->json([
+        'message' => 'Utilisateur créé avec succès',
+        'data'    => $user,
+    ], 201);
+}
 
     // PUT /api/users/{id} — modifier un utilisateur
     public function update(Request $request, $id)
@@ -106,6 +109,7 @@ public function repetiteurs()
 {
     $repetiteurs = User::where('role', 'repetiteur')
         ->where('actif', true)
+        ->select('id','nom','prenom','email','telephone','region','photo_url','matieres','tarif_horaire','bio','created_at')
         ->get();
     return response()->json($repetiteurs);
 }

@@ -34,11 +34,31 @@ class DemandeRepetiteurController extends Controller
 
     // PUT /api/demandes-repetiteur/{id}/confirmer
     public function confirmer($id)
-    {
-        $demande = DemandeRepetiteur::findOrFail($id);
-        $demande->update(['statut' => 'confirme']);
-        return response()->json(['message' => 'Confirmé', 'data' => $demande]);
+{
+    $demande = DemandeRepetiteur::findOrFail($id);
+    $demande->update(['statut' => 'confirme']);
+
+    // Vérifier si un compte existe déjà avec cet email
+    $existingUser = \App\Models\User::where('email', $demande->email)->first();
+
+    if (!$existingUser) {
+        // Créer automatiquement le compte répétiteur
+        \App\Models\User::create([
+            'prenom'    => $demande->prenom,
+            'nom'       => $demande->nom,
+            'email'     => $demande->email,
+            'telephone' => $demande->telephone,
+            'password'  => \Illuminate\Support\Facades\Hash::make('savoirexpress123'),
+            'role'      => 'repetiteur',
+            'actif'     => true,
+        ]);
     }
+
+    return response()->json([
+        'message' => 'Demande confirmée et compte créé',
+        'data'    => $demande
+    ]);
+}
 
     // PUT /api/demandes-repetiteur/{id}/refuser
     public function refuser($id)
